@@ -13,7 +13,7 @@ use rand::{distributions::Alphanumeric, rngs::OsRng, Rng};
 use serde_json::json;
 
 use crate::{
-    email::Email,
+    email::{Email, send_password_reset_email},
     model::{
         ForgotPasswordSchema, LoginUserSchema, RegisterUserSchema, ResetPasswordSchema,
         TokenClaims, User,
@@ -21,6 +21,7 @@ use crate::{
     response::{ErrorResponse, FilteredUser},
     AppState,
 };
+
 
 pub async fn health_checker_handler() -> impl IntoResponse {
     const MESSAGE: &str =
@@ -462,3 +463,29 @@ fn generate_random_string(length: usize) -> String {
 
     random_string
 }
+
+#[axum::debug_handler]
+pub async fn password_reset_handler(
+    State(data): State<Arc<AppState>>,
+    Json(payload): Json<ForgotPasswordSchema>
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    // Generate a random token
+    let token = generate_random_string(32);
+
+    // Attempt to send the password reset email
+    let result = send_password_reset_email(&payload.email, &token, &data.config).await;
+
+    match result {
+        Ok(_) => Ok((StatusCode::OK, "Password reset email sent successfully.")),
+        Err(e) => {
+            eprintln!("Error sending email: {:?}", e);
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to send password reset email.".into(),
+            ))
+        }
+    }
+}
+
+
+

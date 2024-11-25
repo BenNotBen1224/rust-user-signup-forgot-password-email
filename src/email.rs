@@ -5,6 +5,7 @@ use lettre::{
 };
 
 use crate::{config::Config, model::User};
+use std::error::Error;
 
 pub struct Email {
     user: User,
@@ -105,3 +106,36 @@ impl Email {
         .await
     }
 }
+
+pub async fn send_password_reset_email(email: &str, token: &str, config: &Config) -> Result<(), Box<dyn Error>> {
+    let reset_link = format!("http://localhost:3000/pwd-reset/{}", token);
+
+    // Create the email content
+    let email_content = format!(
+        "<p>Hi,</p>
+        <p>You requested a password reset. Click the link below to reset your password:</p>
+        <p><a href=\"{}\">Reset Password</a></p>
+        <p>If you did not request this, please ignore this email.</p>",
+        reset_link
+    );
+
+    // Create the email message
+    let email_message = Message::builder()
+        .from(config.smtp_from.parse()?)
+        .to(email.parse()?)
+        .subject("Password Reset Request")
+        .header(ContentType::TEXT_HTML)
+        .body(email_content)?;
+
+    // Set up the SMTP transport
+    let creds = Credentials::new(config.smtp_user.clone(), config.smtp_pass.clone());
+    let mailer = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&config.smtp_host)?
+        .port(config.smtp_port)
+        .credentials(creds)
+        .build();
+
+    // Send the email
+    mailer.send(email_message).await?;
+    Ok(())
+}
+

@@ -10,6 +10,7 @@ use crate::{
     handler::{
         forgot_password_handler, get_me_handler, health_checker_handler, login_user_handler,
         logout_handler, register_user_handler, reset_password_handler, verify_email_handler,
+        password_reset_handler,
     },
     jwt_auth::auth,
     AppState,
@@ -39,5 +40,6 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
             get(get_me_handler)
                 .route_layer(middleware::from_fn_with_state(app_state.clone(), auth)),
         )
+        .route("/pwd-reset", post(password_reset_handler))
         .with_state(app_state)
 }
